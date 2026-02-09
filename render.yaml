@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: netflix-clone-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        sync: false  # Set this in Render dashboard
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false  # Set this in Render dashboard
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false  # Set this in Render dashboard
+    healthCheckPath: /api/health
+    autoDeploy: true
