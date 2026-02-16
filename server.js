@@ -36,6 +36,11 @@ const allowedOrigins = [
 // In development, allow all origins. In production, use whitelist
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
+
+app.get("/api", (req, res) => {
+  res.json({ message: "MovieFlix API is running 🚀" });
+});
+
 app.use(cors({
   origin: isDevelopment ? true : function(origin, callback) {
     // Allow requests with no origin (mobile apps, curl, etc.)
