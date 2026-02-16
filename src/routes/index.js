@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const mainController = require('../controllers/mainController');
 const userRoutes = require('./userRoutes');
+const authRoutes = require('./authRoutes');
 const myListRoutes = require('./myListRoutes');
 const planRoutes = require('./planRoutes');
 const profileRoutes = require('./profileRoutes');
@@ -14,6 +15,9 @@ const watchHistoryRoutes = require('./watchHistoryRoutes');
 router.get('/status', mainController.getStatus);
 router.get('/health', mainController.getHealth);
 router.post('/data', mainController.postData);
+
+// Auth routes (public)
+router.use('/auth', authRoutes);
 
 // User routes (requires authentication)
 router.use('/users', userRoutes);

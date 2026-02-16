@@ -14,6 +14,8 @@ yarn-error.log*
 # Firebase service account
 config/firebase-service-account.json
 *-service-account*.json
+src/config/*-firebase-adminsdk*.json
+src/config/firebase-service-account.json
 
 # Logs
 logs/

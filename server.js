@@ -8,7 +8,8 @@ const connectDB = require('./src/config/db');
 const { initializeFirebase } = require('./src/config/firebase');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+
 
 // Initialize connections
 let dbConnected = false;
@@ -17,13 +18,20 @@ let firebaseInitialized = false;
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',  // Vite dev server
+  'http://localhost:5174',  // Vite dev server (alternative port)
   'http://localhost:3000',  // Alternative dev port
-  'http://localhost:5000',  // Backend port
+  'http://localhost:5000',  // Backend port (legacy)
+  'http://localhost:5001',  // Backend port (current)
   'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5000',
+  'http://127.0.0.1:5001',
+  'https://movieflix-a11111-ui.vercel.app/', // Vercel production frontend
   process.env.FRONTEND_URL, // Production frontend URL from env
 ].filter(Boolean); // Remove undefined values
+
+
 
 // In development, allow all origins. In production, use whitelist
 const isDevelopment = process.env.NODE_ENV !== 'production';
