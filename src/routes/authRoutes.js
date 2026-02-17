@@ -318,24 +318,41 @@ router.post('/google-login', async (req, res) => {
   try {
     const { idToken } = req.body;
 
+    console.log('🔍 Google login attempt received');
+
     if (!idToken) {
+      console.error('❌ Google login failed: No ID token provided');
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Google ID token is required'
       });
     }
 
+    // Log token length for debugging (don't log the actual token)
+    console.log(`🔑 ID Token received (length: ${idToken.length})`);
+
     const auth = getAuth();
-    const decodedToken = await auth.verifyIdToken(idToken);
+    
+    let decodedToken;
+    try {
+      decodedToken = await auth.verifyIdToken(idToken);
+      console.log(`✅ Token verified for user: ${decodedToken.uid}`);
+    } catch (verifyError) {
+      console.error('❌ Token verification failed:', verifyError.code, verifyError.message);
+      throw verifyError;
+    }
 
     const isAdmin = isPermanentAdmin(decodedToken.email);
+    console.log(`👤 User email: ${decodedToken.email}, Admin: ${isAdmin}`);
     
     let user = await User.findByFirebaseUid(decodedToken.uid);
     
     if (!user) {
+      console.log('🆕 New user, creating account...');
       const existingUserByEmail = await User.findByEmail(decodedToken.email);
       
       if (existingUserByEmail) {
+        console.log('🔗 Linking existing user by email to Firebase UID');
         user = existingUserByEmail;
         user.firebaseUid = decodedToken.uid;
       } else {
@@ -350,6 +367,7 @@ router.post('/google-login', async (req, res) => {
         });
       }
     } else {
+      console.log('🔄 Existing user, updating login time...');
       user.lastLoginAt = new Date();
       if (decodedToken.email) user.email = decodedToken.email;
       if (decodedToken.name) user.displayName = decodedToken.name;
@@ -362,14 +380,31 @@ router.post('/google-login', async (req, res) => {
     }
 
     await user.save();
+    console.log('💾 User saved to database');
 
-    const customToken = await auth.createCustomToken(decodedToken.uid);
+    // Generate a custom token that can be used to get a refresh token
+    let customToken;
+    try {
+      customToken = await auth.createCustomToken(decodedToken.uid);
+      console.log('🔐 Custom token created successfully');
+    } catch (customTokenError) {
+      console.error('❌ Failed to create custom token:', customTokenError.message);
+      // Continue without custom token - idToken is still valid
+      customToken = null;
+    }
+
+    // Google Sign-In doesn't provide a refresh token, so we use the idToken
+    // The frontend should handle token refresh by re-authenticating with Google
+    // or we can provide a custom token that can be exchanged
+    const expiresIn = 3600; // 1 hour in seconds (standard Firebase ID token expiry)
 
     res.json({
       success: true,
       data: {
         idToken,
+        refreshToken: idToken, // Use idToken as refreshToken for Google sign-in
         customToken,
+        expiresIn,
         user: {
           uid: decodedToken.uid,
           email: decodedToken.email,
@@ -381,22 +416,67 @@ router.post('/google-login', async (req, res) => {
         userData: user.toPublicProfile()
       }
     });
+    console.log('✅ Google login successful');
   } catch (error) {
-    if (error.code === 'auth/argument-error' || error.code === 'auth/id-token-expired' || error.code === 'auth/invalid-id-token') {
+    console.error('❌ Google login error:', error.code, error.message);
+    
+    // Handle specific Firebase Auth errors
+    if (error.code === 'auth/argument-error') {
       return res.status(400).json({
         error: 'Bad Request',
-        message: 'Invalid or expired ID token. Please sign in again.',
-        details: error.code
+        message: 'Invalid ID token format. Please sign in again.',
+        code: error.code
+      });
+    }
+    
+    if (error.code === 'auth/id-token-expired') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'ID token has expired. Please sign in again.',
+        code: error.code
+      });
+    }
+    
+    if (error.code === 'auth/invalid-id-token') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid ID token. Please sign in again.',
+        code: error.code
+      });
+    }
+
+    if (error.code === 'auth/invalid-credential') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid credentials. Please sign in again.',
+        code: error.code
+      });
+    }
+
+    if (error.code === 'auth/user-not-found') {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'User not found in Firebase.',
+        code: error.code
+      });
+    }
+
+    if (error.code === 'auth/project-not-found') {
+      return res.status(500).json({
+        error: 'Internal Server Error',
+        message: 'Firebase project configuration error. Please contact support.',
+        code: error.code
       });
     }
 
     res.status(500).json({
       error: 'Internal Server Error',
       message: error.message || 'Google login failed',
-      details: error.code || 'unknown_error'
+      code: error.code || 'unknown_error'
     });
   }
 });
+
 
 // Create custom token for authenticated users
 router.post('/custom-token', verifyFirebaseToken, async (req, res) => {

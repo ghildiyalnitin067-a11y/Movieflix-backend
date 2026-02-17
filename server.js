@@ -27,7 +27,8 @@ const allowedOrigins = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:5000',
   'http://127.0.0.1:5001',
-  'https://movieflix-a11111-ui.vercel.app/', // Vercel production frontend
+  'https://movieflix-a11111-ui.vercel.app', // Vercel production frontend
+
   process.env.FRONTEND_URL, // Production frontend URL from env
 ].filter(Boolean); // Remove undefined values
 

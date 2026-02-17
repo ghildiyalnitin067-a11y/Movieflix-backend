@@ -6,7 +6,10 @@ const verifyFirebaseToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     
+    console.log(`🔐 Auth middleware: ${req.method} ${req.path}`);
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ No Bearer token provided');
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'No token provided or invalid token format'
@@ -16,14 +19,26 @@ const verifyFirebaseToken = async (req, res, next) => {
     const idToken = authHeader.split('Bearer ')[1];
     
     if (!idToken) {
+      console.log('❌ Token is empty after Bearer');
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'No token found'
       });
     }
 
+    // Log token length for debugging (don't log the actual token)
+    console.log(`🔑 Token received (length: ${idToken.length})`);
+
     const auth = getAuth();
-    const decodedToken = await auth.verifyIdToken(idToken);
+    
+    let decodedToken;
+    try {
+      decodedToken = await auth.verifyIdToken(idToken);
+      console.log(`✅ Token verified for user: ${decodedToken.uid}`);
+    } catch (verifyError) {
+      console.error('❌ Token verification failed:', verifyError.code, verifyError.message);
+      throw verifyError;
+    }
     
     req.user = {
       uid: decodedToken.uid,
@@ -36,26 +51,48 @@ const verifyFirebaseToken = async (req, res, next) => {
 
     next();
   } catch (error) {
+    console.error('❌ Auth middleware error:', error.code, error.message);
+    
     if (error.code === 'auth/id-token-expired') {
       return res.status(401).json({
         error: 'Unauthorized',
-        message: 'Token has expired'
+        message: 'Token has expired',
+        code: error.code
       });
     }
     
     if (error.code === 'auth/id-token-revoked') {
       return res.status(401).json({
         error: 'Unauthorized',
-        message: 'Token has been revoked'
+        message: 'Token has been revoked',
+        code: error.code
+      });
+    }
+
+    if (error.code === 'auth/invalid-id-token') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid ID token format',
+        code: error.code
+      });
+    }
+
+    if (error.code === 'auth/argument-error') {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid token argument',
+        code: error.code
       });
     }
 
     return res.status(401).json({
       error: 'Unauthorized',
-      message: 'Invalid token'
+      message: 'Invalid token',
+      code: error.code || 'unknown_error'
     });
   }
 };
+
 
 const optionalAuth = async (req, res, next) => {
   try {
